@@ -20,9 +20,9 @@ pip install -r requirements.txt
 
 ## Download Models
 
-Full Precision - [briaai/Fibo-Edit](https://huggingface.co/briaai/Fibo-Edit)
-4-Bit Quant - [boredcoder/Fibo-Edit-4bit](https://huggingface.co/boredcoder/Fibo-Edit-4bit)
-8-Bit Quant - [boredcoder/Fibo-Edit-8bit](https://huggingface.co/boredcoder/Fibo-Edit-4bit)
+- Full Precision - [briaai/Fibo-Edit](https://huggingface.co/briaai/Fibo-Edit)
+- 4-Bit Quant - [boredcoder/Fibo-Edit-4bit](https://huggingface.co/boredcoder/Fibo-Edit-4bit)
+- 8-Bit Quant - [boredcoder/Fibo-Edit-8bit](https://huggingface.co/boredcoder/Fibo-Edit-8bit)
 
 ## Nodes
 
