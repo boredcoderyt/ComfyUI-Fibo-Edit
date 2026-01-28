@@ -1,0 +1,10 @@
+torch
+transformers>=4.57.1
+diffusers>=0.36.0
+pydantic
+boltons
+ujson
+pillow
+qwen-vl-utils
+bitsandbytes
+accelerate

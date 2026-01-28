@@ -1,0 +1,12 @@
+[project]
+name = "ComfyUI-Fibo-Edit"
+description = "This is a ComfyUI Custom Node for running [BriaAI Fibo Edit](https://github.com/Bria-AI/Fibo-Edit)."
+version = "1.0.0"
+dependencies = ["torch", "transformers", "pydantic", "boltons", "ujson", "pillow", "qwen-vl-utils", "bitsandbytes", "accelerate"]
+
+[project.urls]
+Repository = "https://github.com/boredcoderyt/ComfyUI-Fibo-Edit"
+
+[tool.comfy]
+PublisherId = "boredcoderyt"
+DisplayName = "ComfyUI-Fibo-Edit"
