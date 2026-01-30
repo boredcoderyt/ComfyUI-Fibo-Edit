@@ -35,7 +35,8 @@ from diffusers.utils import (
     unscale_lora_layers,
 )
 from diffusers.utils.torch_utils import randn_tensor
-
+import comfy.utils
+from tqdm.auto import tqdm
 
 if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
@@ -915,7 +916,6 @@ class BriaFiboEditPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         torch.cuda.empty_cache()
         
         self.transformer = BriaFiboTransformer2DModel.from_pretrained(os.path.join(self.custom_model_path, "transformer"), device_map=device, torch_dtype=torch_dtype)
-        # self.transformer = BriaFiboTransformer2DModel.from_pretrained(os.path.join(self.custom_model_path, "transformer"), device_map="balanced", torch_dtype=torch_dtype)
 
         total_num_layers_transformer = len(self.transformer.transformer_blocks) + len(
             self.transformer.single_transformer_blocks
@@ -928,66 +928,66 @@ class BriaFiboEditPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
             prompt_layers = prompt_layers + [prompt_layers[-1]] * (total_num_layers_transformer - len(prompt_layers))
 
         # 6. Denoising loop
-        with self.progress_bar(total=num_inference_steps) as progress_bar:
-            for i, t in enumerate(timesteps):
-                if self.interrupt:
-                    continue
+        progress_bar = comfy.utils.ProgressBar(num_inference_steps)
+        for i, t in enumerate(tqdm(timesteps, disable=False)):
+            if self.interrupt:
+                continue
 
-                latent_model_input = latents
+            latent_model_input = latents
 
-                if image_latents is not None:
-                    latent_model_input = torch.cat([latent_model_input, image_latents], dim=1)
+            if image_latents is not None:
+                latent_model_input = torch.cat([latent_model_input, image_latents], dim=1)
 
-                # expand the latents if we are doing classifier free guidance
-                latent_model_input = torch.cat([latent_model_input] * 2) if guidance_scale > 1 else latent_model_input
+            # expand the latents if we are doing classifier free guidance
+            latent_model_input = torch.cat([latent_model_input] * 2) if guidance_scale > 1 else latent_model_input
 
-                # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.expand(latent_model_input.shape[0]).to(
-                    device=latent_model_input.device, dtype=latent_model_input.dtype
-                )
+            # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
+            timestep = t.expand(latent_model_input.shape[0]).to(
+                device=latent_model_input.device, dtype=latent_model_input.dtype
+            )
 
-                # This is predicts "v" from flow-matching or eps from diffusion
-                noise_pred = self.transformer(
-                    hidden_states=latent_model_input,
-                    timestep=timestep,
-                    encoder_hidden_states=prompt_embeds,
-                    text_encoder_layers=prompt_layers,
-                    joint_attention_kwargs=self.joint_attention_kwargs,
-                    return_dict=False,
-                    txt_ids=text_ids,
-                    img_ids=latent_image_ids,
-                )[0]
+            # This is predicts "v" from flow-matching or eps from diffusion
+            noise_pred = self.transformer(
+                hidden_states=latent_model_input,
+                timestep=timestep,
+                encoder_hidden_states=prompt_embeds,
+                text_encoder_layers=prompt_layers,
+                joint_attention_kwargs=self.joint_attention_kwargs,
+                return_dict=False,
+                txt_ids=text_ids,
+                img_ids=latent_image_ids,
+            )[0]
 
-                # perform guidance
-                if guidance_scale > 1:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
+            # perform guidance
+            if guidance_scale > 1:
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-                # compute the previous noisy sample x_t -> x_t-1
-                latents_dtype = latents.dtype
-                latents = self.scheduler.step(noise_pred[:, : latents.shape[1], ...], t, latents, return_dict=False)[0]
+            # compute the previous noisy sample x_t -> x_t-1
+            latents_dtype = latents.dtype
+            latents = self.scheduler.step(noise_pred[:, : latents.shape[1], ...], t, latents, return_dict=False)[0]
 
-                if latents.dtype != latents_dtype:
-                    if torch.backends.mps.is_available():
-                        # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
-                        latents = latents.to(latents_dtype)
+            if latents.dtype != latents_dtype:
+                if torch.backends.mps.is_available():
+                    # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
+                    latents = latents.to(latents_dtype)
 
-                if callback_on_step_end is not None:
-                    callback_kwargs = {}
-                    for k in callback_on_step_end_tensor_inputs:
-                        callback_kwargs[k] = locals()[k]
-                    callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
+            if callback_on_step_end is not None:
+                callback_kwargs = {}
+                for k in callback_on_step_end_tensor_inputs:
+                    callback_kwargs[k] = locals()[k]
+                callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
 
-                    latents = callback_outputs.pop("latents", latents)
-                    prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
-                    negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
+                latents = callback_outputs.pop("latents", latents)
+                prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
+                negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
 
-                # call the callback, if provided
-                if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
-                    progress_bar.update()
+            # call the callback, if provided
+            if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
+                progress_bar.update(1)
 
-                if XLA_AVAILABLE:
-                    xm.mark_step()
+            if XLA_AVAILABLE:
+                xm.mark_step()
 
         if output_type == "latent":
             image = latents
