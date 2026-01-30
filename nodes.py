@@ -1,4 +1,6 @@
+from tqdm.auto import tqdm, trange
 import os
+import time
 import json
 import math
 import torch
@@ -532,11 +534,11 @@ class FiboEdit:
         }
 
     RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "inference"
+    FUNCTION = "sample"
     CATEGORY = "ComfyUI-Fibo-Edit"
     DESCRIPTION = "(Down)load and use fibo edit. Setting low_vram=True sets cfg=1 to reduce VRAM usage."
 
-    def inference(
+    def sample(
         self,
         model,
         image,
@@ -577,7 +579,7 @@ class FiboEdit:
         pipe.enable_model_cpu_offload()
 
         if mask is not None:
-            if mask.shape[1] == 64 and mask.shape[2] == 64:
+            if (mask == 0).all():
                 mask = None
             else:
                 mask = mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])).movedim(1, -1).expand(-1, -1, -1, 3)
@@ -585,7 +587,6 @@ class FiboEdit:
         
         if image is not None:
             image = tensor2pil(image)
-            # image = ToPILImage()(image[0].permute(2, 0, 1))
         
         if low_vram:
             cfg = 1
