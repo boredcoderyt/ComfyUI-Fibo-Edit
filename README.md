@@ -10,8 +10,6 @@ ComfyUI custom node for [Fibo Edit](https://github.com/Bria-AI/Fibo-Edit) image 
 
 ## Installation
 
-- Install from ComfyUI Manager (search for `Fibo Edit`)
-
 - Download or git clone this repository into the `ComfyUI\custom_nodes\` directory and run:
 
 ```python
