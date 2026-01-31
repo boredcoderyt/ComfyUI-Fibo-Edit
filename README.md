@@ -8,6 +8,8 @@ ComfyUI custom node for [Fibo Edit](https://github.com/Bria-AI/Fibo-Edit) image 
 
 - **Example workflow**: [examples/workflow.json](examples/workflow.json)
 
+![workflow.png](examples/workflow.png)
+
 ## Installation
 
 - Download or git clone this repository into the `ComfyUI\custom_nodes\` directory and run:
